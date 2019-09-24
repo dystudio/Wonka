@@ -866,9 +866,11 @@ namespace WonkaEth.Extensions
         {
             var addRuleTreeFunction = poContract.GetFunction("addRuleTree");
 
-            var gas = addRuleTreeFunction.EstimateGasAsync(psSenderAddress, "SomeName", "SomeDesc", true, true, true).Result;
+			// NOTE: Estimate fails
+			// var gas = addRuleTreeFunction.EstimateGasAsync(psSenderAddress, "SomeName", "SomeDesc", true, true, true).Result;
+			var gas = new Nethereum.Hex.HexTypes.HexBigInteger(CONST_MIN_GAS_COST_DEFAULT);
 
-            var sRootName      = "";
+			var sRootName      = "";
             var sDesc          = "Root Node of the Tree";
             var severeFailFlag = (poRuleSet.ErrorSeverity == RULE_SET_ERR_LVL.ERR_LVL_SEVERE);
             var andOpFlag      = (poRuleSet.RulesEvalOperator == RULE_OP.OP_AND);
