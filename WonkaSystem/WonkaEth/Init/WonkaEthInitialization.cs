@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace WonkaEth.Init
 {
@@ -93,16 +95,22 @@ namespace WonkaEth.Init
         public string ContractABIIpfsResource
         {
             get { return msContractABIIpfsResource; }
+        }
 
-            set
+        public async Task SetContractABIIpfsResourceAsync(string contractABIIpfsResource)
+        {
+            msContractABIIpfsResource = contractABIIpfsResource;
+
+            if (!String.IsNullOrEmpty(msBusinessRulesIpfsResource) && String.IsNullOrEmpty(BusinessRules))
             {
-                msContractABIIpfsResource = value;
-
-                if (!String.IsNullOrEmpty(msContractABIIpfsResource) && String.IsNullOrEmpty(ContractABI))
-                {
-                    ContractABI = WonkaIpfs.WonkaIpfsEnvironment.GetInstance().GetFile(msContractABIIpfsResource);
-                }
+                //quick workaround
+                ContractABI = await new HttpClient().GetStringAsync(msContractABIIpfsResource);
             }
+
+            //if (!String.IsNullOrEmpty(msContractABIIpfsResource) && String.IsNullOrEmpty(ContractABI))
+            //{
+            //    ContractABI = WonkaIpfs.WonkaIpfsEnvironment.GetInstance().GetFile(msContractABIIpfsResource);
+            //}
         }
 
         public string ContractABI { get; set; }
@@ -133,16 +141,20 @@ namespace WonkaEth.Init
         {
             get { return msBusinessRulesIpfsResource; }
 
-            set
-            {
-                msBusinessRulesIpfsResource = value;
+        
+        }
 
-                if (!String.IsNullOrEmpty(msBusinessRulesIpfsResource) && String.IsNullOrEmpty(BusinessRules))
-                {
-                    BusinessRules = WonkaIpfs.WonkaIpfsEnvironment.GetInstance().GetFile(msBusinessRulesIpfsResource);
-                }
+        public async Task SetBusinessRulesIpfsResourceAsync(string businessRulesIpfsResource)
+        {
+            msBusinessRulesIpfsResource = businessRulesIpfsResource;
+
+            if (!String.IsNullOrEmpty(msBusinessRulesIpfsResource) && String.IsNullOrEmpty(BusinessRules))
+            {
+                //quick workaround
+                BusinessRules = await new HttpClient().GetStringAsync(msBusinessRulesIpfsResource);
             }
         }
+
 
         public string BusinessRules { get; set; }
     }

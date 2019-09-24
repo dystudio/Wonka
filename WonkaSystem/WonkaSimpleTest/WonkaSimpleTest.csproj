@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WonkaBre\WonkaBre.csproj" />
+    <ProjectReference Include="..\WonkaEth\WonkaEth.csproj" />
+    <ProjectReference Include="..\WonkaPrd\WonkaPrd.csproj" />
+    <ProjectReference Include="..\WonkaRef\WonkaRef.csproj" />
+  </ItemGroup>
+
+</Project>
