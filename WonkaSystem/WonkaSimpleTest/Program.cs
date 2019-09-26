@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using Nethereum.Web3.Accounts;
 
@@ -37,9 +38,12 @@ namespace TestWonka01
             {
                 var Test = new WonkaNoviceOnlineChainTestAsync(null, true);
 
-                bool bResult = Test.Init().Result;
+				// bool bResult = Test.Init().Result;
+				// bResult = Test.Execute(true).Result;
 
-                bResult = Test.Execute(true).Result;
+				bool bResult = Test.InitVATCalcExample().Result;
+				Test.ExecuteVATCalculationSample();
+
             }
             catch (Exception ex)
             {
@@ -98,19 +102,20 @@ namespace TestWonka01
             msAbiOrchTest = WonkaEth.Autogen.WonkaTestContract.WonkaTestContractDeployment.ABI;
             msByteCodeOrchTest = WonkaEth.Autogen.WonkaTestContract.WonkaTestContractDeployment.BYTECODE;
 
-            // Create an instance of the class that will provide us with PmdRefAttributes (i.e., the data domain)
-            // that define our data record            
-            moMetadataSource = new WonkaBre.Samples.WonkaBreMetadataTestSource();
-            WonkaRefEnvironment.CreateInstance(false, moMetadataSource);
-
-            moProduct = GetNewProduct();
         }
 
         public async Task<bool> Init()
         {
             bool bResult = true;
 
-            using (var client = new System.Net.Http.HttpClient())
+			// Create an instance of the class that will provide us with PmdRefAttributes (i.e., the data domain)
+			// that define our data record            
+			moMetadataSource = new WonkaBre.Samples.WonkaBreMetadataTestSource();
+			WonkaRefEnvironment.CreateInstance(false, moMetadataSource);
+
+			moProduct = GetNewProduct();
+
+			using (var client = new System.Net.Http.HttpClient())
             {
                 string sIpfsUrl = String.Format("{0}/{1}", CONST_INFURA_IPFS_GATEWAY_URL, "QmXcsGDQthxbGW8C3Sx9r4tV9PGSj4MxJmtXF7dnXN5XUT");
 
@@ -146,7 +151,33 @@ namespace TestWonka01
             return bResult;
         }
 
-        public async Task<string> DeployWonka()
+		public async Task<bool> InitVATCalcExample()
+		{
+			bool bResult = true;
+
+			moEthEngineInit = new WonkaEth.Init.WonkaEthEngineInitialization();
+
+			// Create an instance of the class that will provide us with PmdRefAttributes (i.e., the data domain)
+			// that define our data record            
+			moMetadataSource = new WonkaSimpleTest.Samples.WonkaMetadataVATCalcSource();
+			WonkaRefEnvironment.CreateInstance(false, moMetadataSource);
+
+			moProduct = GetNewVATProduct();
+
+			using (var client = new System.Net.Http.HttpClient())
+			{
+				string sIpfsUrl = String.Format("{0}/{1}", CONST_INFURA_IPFS_GATEWAY_URL, "QmPrZ9959c7SzzqdLkVgX28xM7ZrqLeT3ydvRAHCaL1Hsn");
+
+				msRulesContents = await client.GetStringAsync(sIpfsUrl).ConfigureAwait(false);
+			}
+
+			moEthEngineInit.Engine.RulesEngine =
+				new WonkaBreRulesEngine(new StringBuilder(msRulesContents), moMetadataSource);
+
+			return bResult;
+		}
+
+		public async Task<string> DeployWonka()
         {
             var web3 = GetWeb3();
             var EngineDeployment = new WonkaEth.Autogen.WonkaEngine.WonkaEngineDeployment();
@@ -232,6 +263,42 @@ namespace TestWonka01
             return bResult;
         }
 
+		public bool ExecuteVATCalculationSample()
+		{
+			bool bResult = false;
+
+			var RefEnv      = WonkaRefEnvironment.GetInstance();
+			var RulesEngine = moEthEngineInit.Engine.RulesEngine;
+
+			WonkaRefAttr VATAmtForHRMCAttr = RefEnv.GetAttributeByAttrName("NewVATAmountForHMRC");
+			WonkaRefAttr NewSellTaxAmtAttr = RefEnv.GetAttributeByAttrName("NewSellTaxAmount");
+
+			// Gets a predefined data record that will be our analog for new data coming into the system
+			// We are only using this record to test the .NET implementation
+			WonkaProduct NewProduct = moProduct;
+
+			string sVATAmtBefore     = NewProduct.GetAttributeValue(VATAmtForHRMCAttr);
+			string sSellTaxAmtBefore = NewProduct.GetAttributeValue(NewSellTaxAmtAttr);
+
+			// Validate that the .NET implementation and the rules markup are both working properly
+			WonkaBre.Reporting.WonkaBreRuleTreeReport Report = RulesEngine.Validate(NewProduct);
+
+			string sVATAmtAfter     = NewProduct.GetAttributeValue(VATAmtForHRMCAttr);
+			string sSellTaxAmtAfter = NewProduct.GetAttributeValue(NewSellTaxAmtAttr);
+
+			if (Report.OverallRuleTreeResult == ERR_CD.CD_SUCCESS)
+			{
+				// NOTE: This should only be used for further testing
+				// Serialize(NewProduct);
+			}
+			else if (Report.GetRuleSetFailureCount() > 0)
+				System.Console.WriteLine(".NET Engine says \"Oh heavens to Betsy! Something bad happened!\"");
+			else
+				System.Console.WriteLine(".NET Engine says \"What in the world is happening?\"");
+
+			return bResult;
+		}
+
         public async Task<RuleTreeReport> ExecuteWithReportAsync(WonkaBreRulesEngine poRulesEngine, bool pbValidateWithinTransaction)
         {
             WonkaRefEnvironment RefEnv = WonkaRefEnvironment.GetInstance();
@@ -301,7 +368,36 @@ namespace TestWonka01
             return NewProduct;
         }
 
-        public Nethereum.Contracts.Contract GetContract()
+		public WonkaProduct GetNewVATProduct()
+		{
+			WonkaRefEnvironment WkaRefEnv = WonkaRefEnvironment.GetInstance();
+
+			WonkaRefAttr SalesTrxSeqAttr      = WkaRefEnv.GetAttributeByAttrName("NewSalesTransSeq");
+			WonkaRefAttr SaleVATRateDenomAttr = WkaRefEnv.GetAttributeByAttrName("NewSaleVATRateDenom");
+			WonkaRefAttr SaleItemTypeAttr     = WkaRefEnv.GetAttributeByAttrName("NewSaleItemType");
+			WonkaRefAttr CountryOfSaleAttr    = WkaRefEnv.GetAttributeByAttrName("CountryOfSale");
+			WonkaRefAttr SalePriceAttr        = WkaRefEnv.GetAttributeByAttrName("NewSalePrice");
+			WonkaRefAttr PrevSellTaxAmtAttr   = WkaRefEnv.GetAttributeByAttrName("PrevSellTaxAmount");
+			WonkaRefAttr NewSellTaxAmtAttr    = WkaRefEnv.GetAttributeByAttrName("NewSellTaxAmount");
+			WonkaRefAttr VATAmtForHMRCAttr    = WkaRefEnv.GetAttributeByAttrName("NewVATAmountForHMRC");
+			WonkaRefAttr EanAttr              = WkaRefEnv.GetAttributeByAttrName("NewSaleEAN");
+
+			WonkaProduct NewProduct = new WonkaProduct();
+
+			NewProduct.SetAttribute(SalesTrxSeqAttr,      "123456789");
+			NewProduct.SetAttribute(EanAttr,              "9781234567890");
+			NewProduct.SetAttribute(SaleVATRateDenomAttr, "0");
+			NewProduct.SetAttribute(SaleItemTypeAttr,     "Widget");
+			NewProduct.SetAttribute(CountryOfSaleAttr,    "UK");
+			NewProduct.SetAttribute(SalePriceAttr,        "100");
+			NewProduct.SetAttribute(PrevSellTaxAmtAttr,   "5");
+			NewProduct.SetAttribute(VATAmtForHMRCAttr,    "0");
+			NewProduct.SetAttribute(NewSellTaxAmtAttr,    "0");
+
+			return NewProduct;
+		}
+
+		public Nethereum.Contracts.Contract GetContract()
         {
             var web3 = GetWeb3();
 
